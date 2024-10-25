@@ -6,6 +6,8 @@ Or you can manufacture your own, single sided board using the files included her
 
 To see two PiWiBots playing: https://youtu.be/jH2G25Dmx2Y  
 
+To view the CAD in native Fusion 360 format: https://a360.co/40o5nz3 
+
 The board is compatible with the "Tethered Mini Sumo" project.. a common "Tech Studies" project in British Columbia. https://botshop.wordpress.com/2011/03/30/tethered-mini-sumo-robots/ 
 The entire robot, as presented here, can be manufactured for approximately $20CAD (batteries not included!) as of October 2024
 
