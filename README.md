@@ -15,3 +15,4 @@ To install the software, install Thonny on your computer and use it to copy the 
 
 Copy the code in the Code folder to a folder on your computer. Open the code in Thonny, and then save to the Pico W.
 
+ <img src="https://github.com/Jason-BCIT/PiWiBotOne/blob/main/Pictures/Two%20PiWiBots.jpg" alt="Two PiWiBots" width="700" height="500"> 
