@@ -1,3 +1,8 @@
+#This file contains the functions for establishing a WiFi Access Point
+#The robot will start up in this mode by default.
+#If you hold down a button on startup, though, wifi.py will be selected for network connection functions
+# and the PiWiBot will connect to your home network
+
 import network
 import socket
 import time
@@ -21,25 +26,30 @@ def wait_wlan(wlan):
 
 def setup_ap():
     wlan = network.WLAN(network.AP_IF)
-    wlan.config(essid=config.WIFI_SSID, password=config.WIFI_PASSWORD) 
+    if config.WIFI_PASSWORD == '':
+        print("Establishing Open Access Point")
+        wlan.config(essid=config.WIFI_SSID, security=0)        
+    else:
+        print("Establishing Password Protected Access Point")
+        wlan.config(essid=config.WIFI_SSID, password=config.WIFI_PASSWORD) 
     wlan.active(True)
     wait_wlan(wlan)
     
-    print('set up access point:', config.WIFI_SSID, 'with ip = ', wlan.ifconfig()[0])
+    print('Established access point:', config.WIFI_SSID, 'with ip = ', wlan.ifconfig()[0])
     return wlan
 
-def connect_wlan():
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(False)
-    wlan.disconnect()
-    
-    wlan.active(True)
-    wlan.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
+#def connect_wlan():
+#    wlan = network.WLAN(network.STA_IF)
+#    wlan.active(False)
+#    wlan.disconnect()
+#    
+#    wlan.active(True)
+ #   wlan.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
 
-    wait_wlan(wlan)
+ #   wait_wlan(wlan)
     
-    print('connected to wifi:', config.WIFI_SSID, 'with ip = ', wlan.ifconfig()[0])
-    return wlan
+#    print('connected to wifi:', config.WIFI_SSID, 'with ip = ', wlan.ifconfig()[0])
+#    return wlan
 
 def run():
     wlan = connect_wlan() if not config.WIFI_AP_MODE else setup_ap()
