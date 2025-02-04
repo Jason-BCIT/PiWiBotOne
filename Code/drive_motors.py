@@ -27,7 +27,7 @@ class Motors():									#this creates a class for the motors. The class includes
         self.servo1=PWM(Pin(21))  #Default value is 21
         self.servo1.freq(50)		#send a signal every 20mS
         #self.servo1.duty_ns(1000000) #one million nanoseconds is one ms, the netral position for a servo
-        self.servo1.duty_u16(1000)
+        self.servo1.duty_u16(4000)
         
         #self.servo2=PWM(Pin(20))  #Default value is 20
 
@@ -93,9 +93,9 @@ class Motors():									#this creates a class for the motors. The class includes
                 angle=128
             if(angle<-128):
                 angle=-128
-            max_position=2000		#pulse length in us to achieve maximum servo angle of +90 degrees
-            min_position=1000		#you can tweak these values to maximize your servo operation
-            pulse_us=int((min_position+((max_position-min_position)/256)*(angle+128)))
-            self.servo1.duty_ns(1000*pulse_us)
-            print("Setting Servo1 to:",pulse_us," uS")
+            max_position=2000000		#pulse length in us to achieve maximum servo angle of +90 degrees
+            min_position=1000000		#you can tweak these values to maximize your servo operation
+            pulse_ns=int((min_position+((max_position-min_position)/256)*(angle+128)))
+            self.servo1.duty_ns(pulse_ns)
+            print("Setting Servo1 to:",pulse_ns," uS")
     

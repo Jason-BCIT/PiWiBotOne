@@ -31,10 +31,13 @@ class WebSocketConnection:
             msg_bytes = self.ws.read()
         except OSError:
             self.client_close = True
+            print("OSError in ws_connection.py")
+            
 
         if not msg_bytes and self.client_close:
             raise ClientClosedError()
-
+            print("ClientClosedError in ws_connection.py")
+            
         return msg_bytes
 
     def write(self, msg):

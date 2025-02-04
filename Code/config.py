@@ -4,8 +4,8 @@
 #Navigate to the IP address using a web browser on any computer connected to the network
 #This allows you to use the desktop version of Chrome to inspect/debug the web page in the "index_edited.html" file
 
-WIFI_SSID='YourNetworkName'
-WIFI_PASSWORD='YourNetworkPassword'
+WIFI_SSID='YourHomeWiFiSSID'
+WIFI_PASSWORD='YourHomeWiFiPassword'
 
 # Set up a wireless hotspot with WIFI_SSID/WIFI_PASSWORD above, useful for testing
 WIFI_AP_MODE=False

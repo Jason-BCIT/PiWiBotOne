@@ -6,7 +6,7 @@
 #If you want to password protect your robot's AP, add the password between the quote marks, below
 #These settings are used in the wifi_AP.py file for establishing your access point and setting the parameters
 
-WIFI_SSID='PiWiBotOne'
+WIFI_SSID='PiWiBot'
 WIFI_PASSWORD=''
 
 #A flag to tell the rest of the software that you are operating in Access Point mode (ie, not connected to a home network)
