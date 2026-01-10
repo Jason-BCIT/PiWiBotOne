@@ -10,10 +10,13 @@ print("---------------------")
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 #check to see if a button is pressed... if yes, connect to network defined in wifi.py, else establish Access Point defined in wifi_AP.py
+
 from machine import Pin, ADC, reset				#imports Pin mapping (which pin to which number) and Analog Digital Convertor functions from the MicroPython machine module (a module in micropython is like a library in the Arduino IDE)
 import os					#used for managing file functions and creating a debugging file on the pico
 from sys import exit
-Buttons=ADC(Pin(28))
+Buttons=ADC(Pin(28))		#the pin that the buttons are connected to... used to determine if a button is pressed
+
+# ***** The code normally reads ">2000" so that it connects to wifi when button is pressed... this has been changed
 if (Buttons.read_u16()>2000):				#if the button is pressed when this code executes (once, at startup) it will force the robot to connect to your home network
     import wifi as wifi						#imports the "wifi.py" file from this package and names it wifi. This gives the parameters for connecting to your home network.
     print("Joining Wifi Network")
@@ -29,6 +32,41 @@ import drive_motors								#the "drive_motors.py" file that is part of this pack
 
 from ws_connection import ClientClosedError				#imports the ClientClosedError function from the "ws_connection.py" file contained in this package
 from ws_server import WebSocketServer, WebSocketClient	#imports two functions from the "ws_server.py" file contained in this package
+
+from machine import I2C								#for display and other I2C devices
+from ssd1306 import SSD1306_I2C
+i2c=I2C(0,sda=Pin(4), scl=Pin(5), freq=800000)  #set up an i2c communication channel on pins 16 and 17
+
+try:
+    print("Connecting to OLED Display")
+    oled = SSD1306_I2C(128, 64, i2c)  #connect to a 128 x 64 screen and call it oled
+    OLED_installed = True 
+except Exception as e:
+    print("*** No OLED Display Connected ***")
+    OLED_installed = False 
+if OLED_installed:
+    oled.fill(0)
+    oled.text("Wifi: CanaBot",10,0)
+    oled.text("http://",30,10)
+    oled.text("192.168.4.1", 10,20)
+    oled.show()
+
+try:
+    print("Connecting to VL53L0X ToF LIDAR Rangefinder")
+    import VL53L0X						#rangefinder library
+    tof = VL53L0X.VL53L0X(i2c)
+    LIDAR_installed=True
+except Exception as e:
+    print("*** Cannot connect to VL53L0X LIDAR ***")
+    LIDAR_installed=False
+    
+import neopixel
+np = neopixel.NeoPixel(machine.Pin(1), 10)
+np[0] = (32, 0, 0) # set to red, full brightness
+np[1] = (0, 32, 0) # set to green, half brightness
+np[2] = (0, 0, 32)  # set to blue, quarter brightness
+pixel=0
+np.write()
 
 LED_left = Pin(2, mode=Pin.OUT, value=1)			#The Left Hand "Headlight" is connected to pin 2, is an OUTPUT, and starts out turned ON
 LED_right = Pin(3, mode=Pin.OUT, value=1)			#The Right Hand "Headlight" also starts out turned on, as the value is set to one
@@ -80,19 +118,28 @@ def manage_file (mode):                #if mode=1 then search for a safe filenam
 class TestClient(WebSocketClient):					#this defines a class to manage the websocket communication with the javascript code (in webpage.html) that runs on the phone/tablet/PC controlling the robot
     def __init__(self, conn):						#the class refers to the WebSocketClient function that is imported from the "ws_server.py" file earlier in this program
         super().__init__(conn)						#this is some weird object-oriented programming stuff that I'm still trying to figure out... but it has to do with how the class is initialized when you first set it up
-
+        self.last_packet_time=0
+        self.buf = bytearray(256)   # preallocating a byte array to reduce memory management overhead which causes time delays each time we read the data from the webpage
+      
+    @micropython.native								#try running this faster by pre-compiling parts of it    
     def process(self):								#This function gets called repeatedly to check for data from the controller and set values based on what the data contains. It exists inside the TestClient class, defined above
-        try:
-            #"try" is Python's way to say, "do this, but if there is an error, break out of the command and report the error back so we can handle it"
-            msg = self.connection.read()			#This tries to read the connection
-            if not msg:
-                f.write("-")			#if there is no readable message quickly record a "-"
-                f.flush()
-                return								#but if there is no data there, it ends the function and returns to wherever the function was called from
-            msg = msg.decode("utf-8")				#this interprets the data as a standard text file
-            msg = msg.split("\n")[-2]				#this splits the data wherever a "new line" character is
-            msg = msg.split(" ")					#this splits the data wherever a "space" character is
-            
+        
+        self.connection.write(str(time.ticks_ms()-self.last_packet_time))		#measures the time delay between the current execution of this loop and the previous execution of the loop and sends it to the controller
+        self.last_packet_time=time.ticks_ms()										#using a websocket. You can see the data in Chrome's Dev Tools under the "Network" tab
+                                                                                #this is currently under development to provide feedback from the robot directly to the web interface.
+        
+        try:													#"try" is Python's way to say, "do this, but if there is an error, break out of the command and report the error back so we can handle it"
+            msg = self.connection.read()						#get the data for this websocket object
+            if not msg:											#if there is no message then...
+                #f.write("-")			#if there is no readable message quickly record a "-"
+                #f.flush()				#these log file writes are commented out to save processing time
+                return											# return to the line that called this function
+
+            n = len(msg)										#this breaks the websocket data down into chunks for processing
+            self.buf[:n] = msg  # copy into buffer
+            websocket_message = self.buf[:n].decode("utf-8")
+            msg = websocket_message.strip().split(" ")
+                              
             #The data that is being split comes from the javascript running on the browser being used to drive the robot (see webpage.html)
             #The usual format will have the name of the object that created the data in the msg[0] field
             #For a joystick object the msg[1] field will contain the X value of the joystick and msg[2] will contain the Y value
@@ -101,13 +148,15 @@ class TestClient(WebSocketClient):					#this defines a class to manage the webso
             
             deadline = time.ticks_add(time.ticks_ms(), 300)			#since data was successfully received (or we wouldn't be at this point in the code) extend the deadline for another 300ms
             print(msg[0]," X:",int(msg[1])," Y:",int(msg[2]))		#print the first three items of data received. The first item will be the name of the object that created the data... eg "stick1" or "LED_Left"
-            try:
-                f.write("Message Decode Time="+str(time.ticks_ms())+","+str(msg[0])+","+str(msg[1])+","+str(msg[2])+"\n")
-                f.flush()
-            except:
-                print("Didn't record data")
-                f.write("Didn't record data")
-                f.flush()
+            
+            #the commented out code below here provides enhanced data logging to a file on the pico. This takes time, however, so I have commented this code out for normal operation. Uncomment when debugging.
+            #try:
+            #    f.write("Message Decode Time="+str(time.ticks_ms())+","+str(msg[0])+","+str(msg[1])+","+str(msg[2])+"\n")
+            #    f.flush()
+            #except:
+            #    print("Didn't record data")
+            #    f.write("Didn't record data")
+            #    f.flush()
                 
             if msg[0]=="LED_Left":						#if the message came from the LED_Left object on the webpage
                 LED_left.value(int(msg[1]))				#set the LED_left pin to the value of the next data element (expected to be 1 for HIGH and 0 for LOW)
@@ -140,17 +189,19 @@ class TestClient(WebSocketClient):					#this defines a class to manage the webso
                       
                 motors.apply_power(int(MotorR), int(MotorL),0,0)    #send the values to the motors.apply_power function (located in the "drive_motors.py" file)
                                                                     #it is possible to send four values to the motors.apply_power function, so future expansion to four drive motors is possible
-            if msg[0]=="Slider_1":
+                
+            if msg[0]=="Slider_1":					#if the Slider_1 object on the web interface is the one returning a value
                 slider=int(msg[2])					#convert the slider message to an integer number
                 if ((slider<15) and (slider>-15)):  			#this is the "deadband". It means that the slider doesn't have to be perfectly centered in order for the motors to turn off
                     slider=0
                 if (slider>128): slider=128				#the motor's speed settings range from -128 (full reverse) to +128 (full forward). Zero is "stop".
                 if (slider<-128): slider=-128			#these two statements make sure that the speed never exceeds these limits
-                print("Slider1= ",slider)
-                motors.set_Motor3(slider)
+                print("Slider1= ",slider)				
+                motors.set_Motor3(slider)			#this lets you use the slider to turn a motor on and leave it on... you could easily change this up to have the slider control a servo, of course
+                                                    #or add addditional sliders to the web interface
             
-            if msg[0]=="stick2":
-                motors.set_Servo1(int(msg[1]))
+            if msg[0]=="stick2":						#if the stick2 object is the one returning a value
+                motors.set_Servo1(int(msg[1]))			#use the value in msg[1] to control the servo. For tank drive you could use this to control the right motor.
 
 
         except ClientClosedError:					#at the beginning of this function there is a "try" command. In the event that an error occurs during the function, it will come here to handle common errors
@@ -160,11 +211,7 @@ class TestClient(WebSocketClient):					#this defines a class to manage the webso
             motors.apply_power(0,0,0,0)				#stop the motors
             f.write("ClientClosedError\n")
             f.flush
-        #except e:									#this is some MicroPython error catching code that I'm still figuring out. You can ask me about it, but as of Jan. 2025 my answer will be "I don't know."
-        #    print("exception:" + str(e) + "\n")		#thankfully it doesn't matter that much as it only executes if there is an error
-        #   #cleanup GPIO settings here
-        #    motors.apply_power(0,0,0,0)				#stop the motors
-        #    raise e									#Hmm... I really don't know what I'm doing with this code. This is one of the lines I "just copied". I think this logs an error to the log file. Maybe. Or something...
+
         except KeyboardInterrupt:					#this will trigger if you send a command from Thonny to stop program execution
             print("Keyboard interrupt over serial connection.")
             f.write("\nKeyboard interrupt over serial connection. \n")
@@ -181,8 +228,8 @@ class TestClient(WebSocketClient):					#this defines a class to manage the webso
                 LED_right.value(0)
                 time.sleep(0.1)
             print("An Error occurred in the main loop")
-            f.write("An Error occured in the main loop\n")
-            f.flush()
+            #f.write("An Error occured in the main loop\n")
+            #f.flush()
     
 class TestServer(WebSocketServer):					#this defines the TestServer class and refers to the WebSocketServer class imported from the "ws_server.py" file in this package
     def __init__(self):								#this runs once, on initialization of an object of this class
@@ -198,13 +245,44 @@ wifi.run()			#depending on whether the button was pressed on startup, either the
 server = TestServer()	#the class "TestServer" is defined, above. When this class is assigned to the name "server", the __init__ function will execute, so the code will jump to the "ws_server.py" file
 server.start()			# the server object, created in the last command, has a function called "start". You can see the definition of this function in the "ws_server.py" file
 
-
+#*********************************************************************************************************************************************************************************************
 while True:						#Infinite Loop! The indented code, below, will keep cycling around until you tell it to stop, or turn the robot's power off
     
-    server.process_all()										#the "server" object was created about six lines above here. The "process_all" function is included in the file "ws_server.py"
+    		
+    server.process_all()     	#the "server" object was created about six lines above here. The "process_all" function is included in the file "ws_server.py"
+                                #This object handles all of the communication and motor control.
+    
+    #this is a safety "timeout" routine to shut the motors down if communication is lost. For instance if you drive outside wifi range this should stop the robot from continuing to drive away from you.
     if time.ticks_diff(deadline, time.ticks_ms()) < 0:			#checks to see if the "deadline" time is less than the current time. If it is, then the deadline has passed and we have had a communications problem
         print("Data link not responding. Motors turned off.")	# if there is a communication problem, report the problem
         motors.apply_power(0,0,0,0)								# turn off the motors
         deadline = time.ticks_add(time.ticks_ms(), 10000)		# and create a longer deadline so that the PicoW and the control device have a chance to re-establish communication
-            
+     
+    if LIDAR_installed:				# if the LIDAR Rangefinder is installed, measure the distance (up to 999mm)
+        tof.start()
+        distance=tof.read()
+        if (distance>999):
+            distance=999
+        #print("Range:",distance," mm")
+        tof.stop()
+    else:
+        distance=1		#place a small positive value in here as an error message
+                        
+    if OLED_installed:				#if the OLED display is installed, display the rangefinder distance
+        oled.fill_rect(0,39,105,6,0)
+        oled.rect(0,40,int(distance/8),4,1)
+        oled.show()
+    
+    #update the Neopixel display with a rolling flash to give an idea of the refresh rate of this control loop
+    #works just fine even if the Neopixel strip is not installed because the Neopixels give no feedback
+    pixel=pixel+1
+    if (pixel>8):
+        pixel=0
+    np[pixel]=(32,0,0)
+    np[pixel-1]=(0,0,0)
+    np.write()
+    
+
+
+    
 server.stop()				#this code will execute should something happen to break out of the main loop. But it may never actually execute.

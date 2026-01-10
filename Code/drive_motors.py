@@ -25,9 +25,9 @@ class Motors():									#this creates a class for the motors. The class includes
         self.motor4_PWM.duty_u16(00000)
 
         self.servo1=PWM(Pin(21))  #Default value is 21
-        self.servo1.freq(50)		#send a signal every 20mS
+        self.servo1.freq(5000)		#send a signal every 20mS
         #self.servo1.duty_ns(1000000) #one million nanoseconds is one ms, the netral position for a servo
-        self.servo1.duty_u16(4000)
+        self.servo1.duty_u16(10000)
         
         #self.servo2=PWM(Pin(20))  #Default value is 20
 
@@ -39,7 +39,7 @@ class Motors():									#this creates a class for the motors. The class includes
                             #In the Arduino IDE, the analogWrite function allows PWM values from 0-255 because it is 8 bit resolution, but PWM on the PicoW has 16 bit resolution, so the range of values is 0-65,535.
                             #so a Motor_Start value means that when you start out, the motor immediately jumps to about 40% of "full speed" (25K/65K=40%). Anything less might not move because of the drag of the gearbox and motor bearings.
         
-        MotorL=MotorL*1		#if motor turns backwards, set this to -1... or change how you have your motors plugged in!
+        MotorL=MotorL*-1		#if motor turns backwards, set this to -1... or change how you have your motors plugged in!
         MotorR=MotorR*-1		#if motor turns backwards, set this to 1... or change how you have your motors plugged in!
         
         if (MotorL==0):							#if the motor setting is zero (full stop)
@@ -93,9 +93,10 @@ class Motors():									#this creates a class for the motors. The class includes
                 angle=128
             if(angle<-128):
                 angle=-128
-            max_position=2000000		#pulse length in us to achieve maximum servo angle of +90 degrees
-            min_position=1000000		#you can tweak these values to maximize your servo operation
-            pulse_ns=int((min_position+((max_position-min_position)/256)*(angle+128)))
-            self.servo1.duty_ns(pulse_ns)
-            print("Setting Servo1 to:",pulse_ns," uS")
+            max_position=2000		#pulse length in us to achieve maximum servo angle of +90 degrees
+            min_position=1000		#you can tweak these values to maximize your servo operation
+            pulse_us=int((min_position+((max_position-min_position)/256)*(angle+128)))
+            self.servo1.duty_u16(30000)
+            #self.servo1.duty_ns(1000*pulse_us)
+            print("Setting Servo1 to:",pulse_us," uS")
     

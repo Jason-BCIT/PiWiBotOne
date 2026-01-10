@@ -1,7 +1,7 @@
 MIT License
 
-Copyright (c) 2022 Adrian Cruceru
-Modifications Copyright 2025 by Jason Brett
+Original Code and License Copyright (c) 2022 Adrian Cruceru
+Modifications & Expansion Copyright 2026 by Jason Brett
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

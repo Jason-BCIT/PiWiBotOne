@@ -5,14 +5,14 @@ import websocket_helper
 from time import sleep
 from ws_connection import WebSocketConnection, ClientClosedError
 
-class WebSocketClient:
+class WebSocketClient:											
     def __init__(self, conn):
         print("WebSocketClient.__init__ in ws_server.py")
         self.connection = conn
 
-    def process(self):
-        print("WebSocketClient.process in ws_server.py");
+    def process(self):		#this never actually seems to execute as the process call is actually a TestClient object function from Main
         pass
+
 
 class WebSocketServer:
     def __init__(self, page, max_connections=1):
@@ -105,9 +105,12 @@ class WebSocketServer:
         print("Started WebSocket server.")
 
     def process_all(self):
+        #print("process_all: clients =", len(self._clients))			#some debugging prints suggested by CoPilot
         for client in self._clients:
+            #print("client type:", type(client))
+            #print("client repr:", client)
             client.process()
-
+   
     def remove_connection(self, conn):
         print("remove_connection in ws_server.py")
         for client in self._clients:
